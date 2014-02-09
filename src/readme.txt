@@ -1,0 +1,1 @@
+Avoid mines, not Love.

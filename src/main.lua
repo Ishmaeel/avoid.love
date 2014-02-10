@@ -8,8 +8,11 @@ function love.keypressed(key)
   end
 end
 
+-- Inserts thousand separators into a number.
+-- Stolen from http://lua-users.org/wiki/FormattingNumbers
 function formatNumber(amount)
   local formatted = amount
+  local k
   while true do
     formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
     if (k==0) then
@@ -52,7 +55,7 @@ function love.load()
   starHeight = starSprite:getWidth() / 2
 
   font = love.graphics.setNewFont(18)
-  vert = starHeight-(font:getHeight()/2)
+  starPadding = starHeight-(font:getHeight()/2)
 
   init()
 end
@@ -71,18 +74,18 @@ function init()
   mineBatchDistance = 200
   shouldSpawnStar = true
   Mines = {}
-  grace = 0
+  speedUpCounter = 0
   shipSpeed = 200
   score = 0
   backgroundColorValue = 255
   backgroundColorChange = -.01
-  dead = true
+  isPlayerDead = true
   shipPosX=400
   shipPosY=350
   shipOrientation=0
   starPosX=0
   starPosY=0
-  blink=0
+  starFlash=0
 
   -- If the default ship location is already under the mouse, move the ship somewhere else.
   if (detectCollision(shipPosX, shipPosY, love.mouse.getX(), love.mouse.getY(), 1, 50)) then
@@ -104,7 +107,7 @@ function init()
 end
 
 function love.update(dt)
-  if dead then
+  if isPlayerDead then
     wait(dt)
   else
     play(dt)
@@ -116,7 +119,7 @@ function wait(dt)
     dying = dying - (512*dt)
   elseif (detectCollision(shipPosX, shipPosY, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
     love.mouse.setVisible( false )
-    dead = false
+    isPlayerDead = false
   end
 end
 
@@ -144,12 +147,12 @@ function play(dt)
 
   distanceTraveled = distanceTraveled + (shipSpeed * dt)
 
-  if blink > 0 then blink = blink - dt end
+  if starFlash > 0 then starFlash = starFlash - dt end
 
-  grace = grace + dt
-  if grace > 1 then
+  speedUpCounter = speedUpCounter + dt
+  if speedUpCounter > 1 then
     shipSpeed = shipSpeed + 1
-    grace = 0
+    speedUpCounter = 0
     if mineDensity < 50 then mineDensity = mineDensity + 1 end
   end
 
@@ -207,23 +210,25 @@ function checkForMissionComplete()
 end
 
 function useStarMagnet()
-  mex = love.mouse.getX() - shipWidth
-  wwox = starPosX - starHeight
-  grav = .005 if (wwox > mex) then grav = -grav end
-  grav = (math.abs( 100-(wwox-mex))) * grav
-  starPosX = starPosX + grav
+  gravityX = .005
+  mouseX = love.mouse.getX()
+  starX = starPosX
+  if (starX > mouseX) then gravityX = -gravityX end
+  gravityX = (math.abs( 100-(starX-mouseX))) * gravityX
+  starPosX = starPosX + gravityX
 
-  mey = love.mouse.getY() - shipHeight
-  wwoy = distanceTraveled - starPosY - starHeight;
-  if (wwoy > mey) then grav = .015 else grav = -.005 end
-  grav = (math.abs( 100-(wwoy-mey))) * grav
-  starPosY = starPosY + grav
+  gravityY = 0
+  mouseY = love.mouse.getY()
+  starY = distanceTraveled - starPosY
+  if (starY > mouseY) then gravityY = .015 else gravityY = -.005 end
+  gravityY = (math.abs( 100-(starY-mouseY))) * gravityY
+  starPosY = starPosY + gravityY
 end
 
 function collectStar()
   isFirstStar = false
   isStarAlive = false
-  blink = .05
+  starFlash = .05
   updateHiddenCodeData()
 end
 
@@ -240,7 +245,7 @@ function love.draw()
     return
   end
 
-  if (blink>0) then
+  if (starFlash>0) then
     love.graphics.setBackgroundColor(255,255,0)
   else
     love.graphics.setBackgroundColor(255-backgroundColorValue, 200, backgroundColorValue)
@@ -266,13 +271,13 @@ function love.draw()
 
   currentScoreText="Level " ..  level .. "  |  Score " .. formatNumber(score)
 
-  love.graphics.print( currentScoreText , 20, 20)	
-  
+  love.graphics.print( currentScoreText , 20, 20)
+
   drawHiddenCodeStars()
-  
+
   love.graphics.printf( "Hi " .. formatNumber(highScore), 380, 20, 400, "right")
 
-  if (dead) then
+  if (isPlayerDead) then
     love.graphics.print( "< POINT", addBounce(shipPosX + 25) , shipPosY -10 , 0, 1)
     if (previousScoreText  ~= "") then
       love.graphics.print( "Last:", 20, 60 )
@@ -285,17 +290,17 @@ function love.draw()
 end
 
 function updateHiddenCodeData()
-  for pi=11, 21 do
-    pine=hiddenCodeData[pi]
-    if pine>400 then
-      if pine <500 then
-        hiddenCodeData[pi]=pine+100
-        hiddenCodeData[11]=hiddenCodeData[11]+pine
+  for index=11, 21 do
+    codeData=hiddenCodeData[index]
+    if codeData>400 then
+      if codeData <500 then
+        hiddenCodeData[index]=codeData+100
+        hiddenCodeData[11]=hiddenCodeData[11]+codeData
         return
-      elseif pine <600 then
-        hiddenCodeData[pi]=pine+1000
-        hiddenCodeData[11]=hiddenCodeData[11]+pine
-        if pi==hiddenCodeData[10] then
+      elseif codeData <600 then
+        hiddenCodeData[index]=codeData+1000
+        hiddenCodeData[11]=hiddenCodeData[11]+codeData
+        if index==hiddenCodeData[10] then
           missionComplete()
         end
         return
@@ -319,9 +324,9 @@ function drawHiddenCodeStars()
       if dataValue>1000 and dataValue<1900 then
         obfuscatedCodeChar = hiddenCodeData[dataValue-1500]
         realCodeChar = string.char(obfuscatedCodeChar-255)
-        
+
         love.graphics.setColor(0,0,0)
-        love.graphics.printf(realCodeChar, (250-starWidth)+(codeStarPosition*50), 30-vert, starWidth*2, "center")
+        love.graphics.printf(realCodeChar, (250-starWidth)+(codeStarPosition*50), 30-starPadding, starWidth*2, "center")
       end
     end
   end

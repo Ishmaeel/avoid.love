@@ -21,94 +21,86 @@ end
 
 function love.load()
   love.filesystem.setIdentity("wooshavoidsspikeds")
-  
-  if love.filesystem.isFile( createFi1e("dat") ) then 
-    data = love.filesystem.read(createFi1e("dat")) 
-    highScore = tonumber(data) 
-  else 
-    highScore = 0 
-  end
-  
-  if love.filesystem.isFile( createFile("sav") ) then 
-    data = love.filesystem.read(createFile("sav")) 
-    lothere = tonumber(data) 
-  else 
-    lothere = 0 
-  end
-  
-  dying = 0
-  verylast = ""
 
-  mineSprite = love.graphics.newImage("spiked.png") 
-  mineWidth = mineSprite:getWidth() / 2 
+  if love.filesystem.isFile("dat") then
+    data = love.filesystem.read("dat")
+    highScore = tonumber(data)
+  else
+    highScore = 0
+  end
+
+  if love.filesystem.isFile("save") then
+    data = love.filesystem.read("save")
+    missionMarker = tonumber(data)
+  else
+    missionMarker = 0
+  end
+
+  dying = 0
+  previousScoreText = ""
+
+  mineSprite = love.graphics.newImage("spiked.png")
+  mineWidth = mineSprite:getWidth() / 2
   mineHeight = mineSprite:getHeight() / 2
-  
-  shipSprite = love.graphics.newImage("woosh.png") 
-  shipWidth = shipSprite:getWidth() / 2 
+
+  shipSprite = love.graphics.newImage("woosh.png")
+  shipWidth = shipSprite:getWidth() / 2
   shipHeight = shipSprite:getHeight() / 2
-  
-  starSprite = love.graphics.newImage("fav.png") 
-  starWidth = starSprite:getWidth() / 2 
+
+  starSprite = love.graphics.newImage("fav.png")
+  starWidth = starSprite:getWidth() / 2
   starHeight = starSprite:getWidth() / 2
 
-  font = love.graphics.setNewFont(18) vert = starHeight-(font:getHeight()/2)
+  font = love.graphics.setNewFont(18)
+  vert = starHeight-(font:getHeight()/2)
 
   init()
 end
 
 function init()
   math.randomseed(42) -- what else?
-  last = 0;
-  go = .1;
+  lastVerticalSpeed = 0;
+  verticalDirection = .1;
   level = 1;
   love.mouse.setVisible( true )
-  Pallette = { [10]=21,[11]=1972,[12]=413,[13]=365,[14]=415,[15]=307,[16]=334,[17]=416,[18]=312,[19]=418,[20]=324,[21]=420,[22]=10 }
-  distance = 0
+  hiddenCodeData = { [10]=21,[11]=1972,[12]=413,[13]=365,[14]=415,[15]=307,[16]=334,[17]=416,[18]=312,[19]=418,[20]=324,[21]=420,[22]=10 }
+  distanceTraveled = 0
   mineDensity = 1
-  nextb = 500
-  nextw = 2
-  step = 200
-  mng = math.pi > math.sqrt(9)
+  nextSpawnDistance = 500
+  nextStarLevel = 2
+  mineBatchDistance = 200
+  shouldSpawnStar = true
   Mines = {}
   grace = 0
-  jump = 200
+  shipSpeed = 200
   score = 0
-  foo = 0
-  col = 255
-  coo = -.01
+  backgroundColorValue = 255
+  backgroundColorChange = -.01
   dead = true
-  px=400
-  py=350
-  rot=0
-  wox=0
-  woy=0
+  shipPosX=400
+  shipPosY=350
+  shipOrientation=0
+  starPosX=0
+  starPosY=0
   blink=0
 
   -- If the default ship location is already under the mouse, move the ship somewhere else.
-  if (collision(px, py, love.mouse.getX(), love.mouse.getY(), 1, 50)) then 
-    py = 450 
+  if (detectCollision(shipPosX, shipPosY, love.mouse.getX(), love.mouse.getY(), 1, 50)) then
+    shipPosY = 450
   end
 
-  local Mine = { Position = {x = 400 , y = -100}, Rot=1, Mov=0, Tweet=true}
+  local Mine = { Position = {x = 400 , y = -100}, RotationSpeed=1, VerticalSpeed=0, ShowTutorial=true}
 
-  beginLoop()
+  checkForMissionComplete()
 
-  if mng then
-    alive=true
-    wox=400
-    woy=400
+  if shouldSpawnStar then
+    isStarAlive=true
+    starPosX=400
+    starPosY=400
     isFirstStar=true
   end
 
   table.insert (Mines, Mine)
-end
-
-function createFile(fileName)
-  return fileName.."e"
-end 
-
-function createFi1e(fileName) 
-  return fileName 
 end
 
 function love.update(dt)
@@ -122,7 +114,7 @@ end
 function wait(dt)
   if dying > 0 then
     dying = dying - (512*dt)
-  elseif (collision(px, py, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
+  elseif (detectCollision(shipPosX, shipPosY, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
     love.mouse.setVisible( false )
     dead = false
   end
@@ -131,7 +123,7 @@ end
 function die()
   if (score >= highScore) then
     highScore = score
-    love.filesystem.write( createFi1e("dat"), highScore )
+    love.filesystem.write("dat", highScore )
   end
 
   dying=255
@@ -139,98 +131,103 @@ function die()
   init()
 end
 
-function recycle()
-  mng=false
-  lothere=Pallette[11]
-  love.filesystem.write( createFile("sav"), lothere )
+function missionComplete()
+  shouldSpawnStar=false
+  missionMarker=hiddenCodeData[11]
+  love.filesystem.write(  "save" , missionMarker )
 end
 
 function play(dt)
 
-  px = love.mouse.getX()
-  py = love.mouse.getY()
+  shipPosX = love.mouse.getX()
+  shipPosY = love.mouse.getY()
 
-  distance = distance + (jump * dt)
+  distanceTraveled = distanceTraveled + (shipSpeed * dt)
 
   if blink > 0 then blink = blink - dt end
 
   grace = grace + dt
   if grace > 1 then
-    jump = jump + 1
+    shipSpeed = shipSpeed + 1
     grace = 0
     if mineDensity < 50 then mineDensity = mineDensity + 1 end
   end
 
-  rot = (400-px)/2000
+  shipOrientation = (400-shipPosX)/2000
 
-  if distance > nextb then
+  if distanceTraveled > nextSpawnDistance then
     addMines()
   end
 
   mineCount = 0
   for mi, mine in pairs(Mines) do
-    if distance - mine.Position.y > 900 then table.remove(Mines, mi) end
+    if distanceTraveled - mine.Position.y > 900 then table.remove(Mines, mi) end
 
-    mine.Position.x = mine.Position.x + (mine.Mov)
+    mine.Position.x = mine.Position.x + (mine.VerticalSpeed)
     mineCount = mineCount + 1
 
-    if (collision(mine.Position.x, distance - mine.Position.y-200, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
+    if (detectCollision(mine.Position.x, distanceTraveled - mine.Position.y-200, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
       die()
       return
     end
   end
 
-  col = col + coo
+  backgroundColorValue = backgroundColorValue + backgroundColorChange
 
-  if (col <1 or col > 255) then coo = -coo end
+  if (backgroundColorValue <1 or backgroundColorValue > 255) then backgroundColorChange = -backgroundColorChange end
 
-  level = math.floor((jump - 200) / 10) + 1
+  level = math.floor((shipSpeed - 200) / 10) + 1
   score = score + level * (math.ceil( (600 - (love.mouse.getY())) / 60 ))
 
   if (score > highScore) then highScore = score end
 
-  if (distance-woy > 800) then
+  if (distanceTraveled-starPosY > 800) then
     isFirstStar=false
-    alive=false
+    isStarAlive=false
   end
 
-  if alive then
-    if (collision(wox, distance - woy, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
+  if isStarAlive then
+    if (detectCollision(starPosX, distanceTraveled - starPosY, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
       collectStar()
-    elseif (collision(wox, distance - woy, love.mouse.getX(), love.mouse.getY(), 1, 50)) then
-      scorpio()
+    elseif (detectCollision(starPosX, distanceTraveled - starPosY, love.mouse.getX(), love.mouse.getY(), 1, 50)) then
+      useStarMagnet()
     end
   end
 
 end
 
-function beginLoop()
-  if lothere == 0 then return end
-  while Pallette[11]~=lothere do cycleColors() end
+function checkForMissionComplete()
+  if missionMarker == 0 then
+    return
+  end
+
+  while hiddenCodeData[11]~=missionMarker do
+    updateHiddenCodeData()
+  end
 end
 
-function scorpio()
+function useStarMagnet()
   mex = love.mouse.getX() - shipWidth
-  wwox = wox - starHeight
+  wwox = starPosX - starHeight
   grav = .005 if (wwox > mex) then grav = -grav end
   grav = (math.abs( 100-(wwox-mex))) * grav
-  wox = wox + grav
+  starPosX = starPosX + grav
 
   mey = love.mouse.getY() - shipHeight
-  wwoy = distance - woy - starHeight;
+  wwoy = distanceTraveled - starPosY - starHeight;
   if (wwoy > mey) then grav = .015 else grav = -.005 end
   grav = (math.abs( 100-(wwoy-mey))) * grav
-  woy = woy + grav
+  starPosY = starPosY + grav
 end
 
 function collectStar()
   isFirstStar = false
-  alive = false
+  isStarAlive = false
   blink = .05
-  cycleColors()
+  updateHiddenCodeData()
 end
 
-function collision(ax, ay, bx, by, ar, br)
+function detectCollision(ax, ay, bx, by, ar, br)
   local dx = bx - ax
   local dy = by - ay
   local dist = math.sqrt(dx * dx + dy * dy)
@@ -246,127 +243,130 @@ function love.draw()
   if (blink>0) then
     love.graphics.setBackgroundColor(255,255,0)
   else
-    love.graphics.setBackgroundColor(255-col,200,col)
+    love.graphics.setBackgroundColor(255-backgroundColorValue, 200, backgroundColorValue)
   end
 
   for mi, mine in pairs(Mines) do
-    love.graphics.draw(mineSprite, mine.Position.x, distance - mine.Position.y - 200, math.rad((distance*mine.Rot) % 360), 1, 1, mineWidth, mineHeight)
+    love.graphics.draw(mineSprite, mine.Position.x, distanceTraveled - mine.Position.y - 200, math.rad((distanceTraveled*mine.RotationSpeed) % 360), 1, 1, mineWidth, mineHeight)
 
-    if (mine.Tweet == true) then
-      love.graphics.print( "< AVOID", addBounce(mine.Position.x + 30), distance - mine.Position.y - 210 , 0, 1)
+    if (mine.ShowTutorial == true) then
+      love.graphics.print( "< AVOID", addBounce(mine.Position.x + 30), distanceTraveled - mine.Position.y - 210 , 0, 1)
     end
   end
 
-  if alive then
-    love.graphics.draw(starSprite, wox, distance - woy, math.rad(distance % 360), 1, 1, starWidth, starHeight)
+  if isStarAlive then
+    love.graphics.draw(starSprite, starPosX, distanceTraveled - starPosY, math.rad(distanceTraveled % 360), 1, 1, starWidth, starHeight)
 
     if (isFirstStar) then
-      love.graphics.print( "< COLLECT", addBounce(wox+20), distance - woy - 10, 0, 1)
+      love.graphics.print( "< COLLECT", addBounce(starPosX+20), distanceTraveled - starPosY - 10, 0, 1)
     end
   end
 
-  love.graphics.draw(shipSprite, px, py , rot, 1, 1, shipWidth, shipHeight)
+  love.graphics.draw(shipSprite, shipPosX, shipPosY , shipOrientation, 1, 1, shipWidth, shipHeight)
 
-  verycurrent="Level " ..  level .. "  |  Score " .. formatNumber(score)
-  love.graphics.print( verycurrent , 20, 20)	updateBackground()
-  love.graphics.printf( "Hi " .. formatNumber(highScore), 380, 20, 400,"right")
+  currentScoreText="Level " ..  level .. "  |  Score " .. formatNumber(score)
+
+  love.graphics.print( currentScoreText , 20, 20)	
+  
+  drawHiddenCodeStars()
+  
+  love.graphics.printf( "Hi " .. formatNumber(highScore), 380, 20, 400, "right")
 
   if (dead) then
-    love.graphics.print( "< POINT", addBounce(px + 25) , py -10 , 0, 1)
-    if (verylast  ~= "") then
+    love.graphics.print( "< POINT", addBounce(shipPosX + 25) , shipPosY -10 , 0, 1)
+    if (previousScoreText  ~= "") then
       love.graphics.print( "Last:", 20, 60 )
-      love.graphics.print( verylast, 20, 80 )
+      love.graphics.print( previousScoreText, 20, 80 )
     end
   else
-    verylast = verycurrent
+    previousScoreText = currentScoreText
   end
 
 end
 
-function cycleColors()
+function updateHiddenCodeData()
   for pi=11, 21 do
-    pine=Pallette[pi]
+    pine=hiddenCodeData[pi]
     if pine>400 then
       if pine <500 then
-        Pallette[pi]=pine+100
-        Pallette[11]=Pallette[11]+pine
+        hiddenCodeData[pi]=pine+100
+        hiddenCodeData[11]=hiddenCodeData[11]+pine
         return
       elseif pine <600 then
-        Pallette[pi]=pine+1000
-        Pallette[11]=Pallette[11]+pine
-        if pi==Pallette[10] then recycle() end
+        hiddenCodeData[pi]=pine+1000
+        hiddenCodeData[11]=hiddenCodeData[11]+pine
+        if pi==hiddenCodeData[10] then
+          missionComplete()
+        end
         return
       end
     end
   end
 end
 
-function addBounce(it)
-  return it + ((math.cos((love.timer.getTime()) * 3 * math.pi)) * 5) -- I have no idea what I'm doing.
+function addBounce(value)
+  return value + ((math.cos((love.timer.getTime()) * 3 * math.pi)) * 5) -- I have no idea what I'm doing.
 end
 
-function updateBackground()
-  scale=0
-  for color = 11, 21 do alpha=Pallette[color]
-    if alpha>500 and alpha<1900 then
-      scale=scale+1
-      love.graphics.setColor(255,255,0) 
-      love.graphics.draw(starSprite, 250+(scale*50), 30, 0, 1, 1, starWidth, starHeight)
+function drawHiddenCodeStars()
+  codeStarPosition=0
+  for arrayIndex = 11, 21 do dataValue = hiddenCodeData[arrayIndex]
+    if dataValue>500 and dataValue<1900 then
+      codeStarPosition=codeStarPosition+1
+      love.graphics.setColor(255,255,0)
+      love.graphics.draw(starSprite, 250+(codeStarPosition*50), 30, 0, 1, 1, starWidth, starHeight)
 
-      if alpha>1000 and alpha<1900 then
-        opacity=Pallette[alpha-1500]
-        love.graphics.setColor(0,0,0) 
-        love.graphics.printf(reverse(opacity), (250-starWidth)+(scale*50), 30-vert, starWidth*2, "center")
+      if dataValue>1000 and dataValue<1900 then
+        obfuscatedCodeChar = hiddenCodeData[dataValue-1500]
+        realCodeChar = string.char(obfuscatedCodeChar-255)
+        
+        love.graphics.setColor(0,0,0)
+        love.graphics.printf(realCodeChar, (250-starWidth)+(codeStarPosition*50), 30-vert, starWidth*2, "center")
       end
     end
   end
   love.graphics.setColor(255,255,255)
 end
 
-function rejoice()
-  if mng then
-    wox=(math.random() * 600) + 100
-    woy=distance
-    alive=true
-    nextw = level + 1
+function spawnStar()
+  if shouldSpawnStar then
+    starPosX=(math.random() * 600) + 100
+    starPosY=distanceTraveled
+    isStarAlive=true
+    nextStarLevel = level + 1
   end
-end
-
-function reverse(opacity)
-  return string.char(opacity-255)
 end
 
 function addMines()
-  if (level >= nextw) then
-    rejoice()
+  if (level >= nextStarLevel) then
+    spawnStar()
   end
 
   local mineCount = (math.random() * mineDensity) + 15
-  local mov = go * math.random()
-  local criss = math.random()-math.random();
+  local verticalSpeedChange = verticalDirection * math.random()
   local offset = 50
 
-  last = last + mov
-  if last > .5 then
-    last = .5
+  lastVerticalSpeed = lastVerticalSpeed + verticalSpeedChange
+  if lastVerticalSpeed > .5 then
+    lastVerticalSpeed = .5
   end
 
-  if last < -.5 then
-    last = -.5
+  if lastVerticalSpeed < -.5 then
+    lastVerticalSpeed = -.5
   end
 
-  if math.random() > .5 then go = -go end
+  if math.random() > .5 then verticalDirection = -verticalDirection end
 
   for i = 0, mineCount-1, 1 do
     local gap =  (2400 / mineCount )
 
     offset = -offset
 
-    local Mine = { Position = {x = -800 + (i * gap) , y = distance + offset},
-      Rot=math.random()-math.random() ,
-      Mov=last }
+    local Mine = { Position = {x = -800 + (i * gap) , y = distanceTraveled + offset},
+      RotationSpeed=math.random()-math.random() ,
+      VerticalSpeed=lastVerticalSpeed }
 
     table.insert (Mines, Mine)
-    nextb = distance + step
+    nextSpawnDistance = distanceTraveled + mineBatchDistance
   end
 end

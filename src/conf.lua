@@ -1,3 +1,3 @@
 function love.conf(t)
-    t.title = "AVOID"   
+    t.title = "avoid.love"   
 end

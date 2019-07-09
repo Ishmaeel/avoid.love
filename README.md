@@ -6,3 +6,4 @@ Written aeons ago for a treasure hunt hosted by [steamgifts.com](https://www.ste
 
 Can you collect all stars and reach the hi-score?
 
+![Screenshot](misc/AVOID_2013-04-29_14-21-11.png?raw=true "Actual in-game screenshot in glorious 2D")

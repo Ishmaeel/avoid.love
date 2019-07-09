@@ -77,8 +77,8 @@ function init()
   speedUpCounter = 0
   shipSpeed = 200
   score = 0
-  backgroundColorValue = 255
-  backgroundColorChange = -.01
+  backgroundColorValue = 1
+  backgroundColorChange = -.0001
   isPlayerDead = true
   shipPosX=400
   shipPosY=350
@@ -116,7 +116,7 @@ end
 
 function wait(dt)
   if dying > 0 then
-    dying = dying - (512*dt)
+    dying = dying - (2 * dt)
   elseif (detectCollision(shipPosX, shipPosY, love.mouse.getX(), love.mouse.getY(), 1, 17)) then
     love.mouse.setVisible( false )
     isPlayerDead = false
@@ -129,7 +129,7 @@ function die()
     love.filesystem.write("dat", highScore )
   end
 
-  dying=255
+  dying=1
 
   init()
 end
@@ -177,7 +177,7 @@ function play(dt)
 
   backgroundColorValue = backgroundColorValue + backgroundColorChange
 
-  if (backgroundColorValue <1 or backgroundColorValue > 255) then backgroundColorChange = -backgroundColorChange end
+  if (backgroundColorValue <0 or backgroundColorValue > 1) then backgroundColorChange = -backgroundColorChange end
 
   level = math.floor((shipSpeed - 200) / 10) + 1
   score = score + level * (math.ceil( (600 - (love.mouse.getY())) / 60 ))
@@ -246,9 +246,9 @@ function love.draw()
   end
 
   if (starFlash>0) then
-    love.graphics.setBackgroundColor(255,255,0)
+    love.graphics.setBackgroundColor(1,1,0)
   else
-    love.graphics.setBackgroundColor(255-backgroundColorValue, 200, backgroundColorValue)
+    love.graphics.setBackgroundColor(1-backgroundColorValue, 0.78, backgroundColorValue)
   end
 
   for mi, mine in pairs(Mines) do
@@ -318,7 +318,7 @@ function drawHiddenCodeStars()
   for arrayIndex = 11, 21 do dataValue = hiddenCodeData[arrayIndex]
     if dataValue>500 and dataValue<1900 then
       codeStarPosition=codeStarPosition+1
-      love.graphics.setColor(255,255,0)
+      love.graphics.setColor(1,1,0)
       love.graphics.draw(starSprite, 250+(codeStarPosition*50), 30, 0, 1, 1, starWidth, starHeight)
 
       if dataValue>1000 and dataValue<1900 then
@@ -330,7 +330,7 @@ function drawHiddenCodeStars()
       end
     end
   end
-  love.graphics.setColor(255,255,255)
+  love.graphics.setColor(1,1,1)
 end
 
 function spawnStar()

@@ -1,6 +1,7 @@
---------------------------------------------------------------------------------------------------------
--- Copyright 2013, Ishmaeel. Source code released under the WTFPL v2. Graphics stolen from Interwebz. --
---------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+-- Copyright 2013-2021, Ishmaeel. Source code released under the WTFPL v2. Graphics stolen from Interwebz.
+-- Last modified: 2021.09.23
+-------------------------------------------------------------------------------------------------------------
 
 function love.keypressed(key)
   if key == "escape" then
@@ -22,22 +23,20 @@ function formatNumber(amount)
   return formatted
 end
 
+function readNumber(file)
+  local fileInfo = love.filesystem.getInfo(file)
+  if fileInfo and fileInfo.type == "file" then
+      local data = love.filesystem.read(file)
+      return data and tonumber(data) or 0
+  end
+  return 0
+end
+
 function love.load()
   love.filesystem.setIdentity("wooshavoidsspikeds")
 
-  if love.filesystem.isFile("dat") then
-    data = love.filesystem.read("dat")
-    highScore = tonumber(data)
-  else
-    highScore = 0
-  end
-
-  if love.filesystem.isFile("save") then
-    data = love.filesystem.read("save")
-    missionMarker = tonumber(data)
-  else
-    missionMarker = 0
-  end
+  highScore = readNumber("dat")
+  missionMarker = readNumber("save")
 
   dying = 0
   previousScoreText = ""
@@ -251,7 +250,7 @@ function love.draw()
     love.graphics.setBackgroundColor(1-backgroundColorValue, 0.78, backgroundColorValue)
   end
 
-  for mi, mine in pairs(Mines) do
+  for _, mine in pairs(Mines) do
     love.graphics.draw(mineSprite, mine.Position.x, distanceTraveled - mine.Position.y - 200, math.rad((distanceTraveled*mine.RotationSpeed) % 360), 1, 1, mineWidth, mineHeight)
 
     if (mine.ShowTutorial == true) then

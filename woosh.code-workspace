@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"lpubsppop01.autoTimeStamp.momentFormat": "YYYY.MM.DD",
+	}
+}
